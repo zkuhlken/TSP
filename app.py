@@ -431,7 +431,14 @@ html(f"""
 
   map.on('load', () => {{
     map.addSource('mask', {{ type: 'geojson', data: {mask_geojson_str} }});
-    map.addLayer({{ id: 'mask-fill', type: 'fill', source: 'mask', paint: {{ 'fill-color': '#fff', 'fill-opacity': 0.9 }} }});
+    map.addLayer({{
+  id: 'mask-fill',
+  type: 'fill',
+  source: 'mask',
+  layout: {{}},   // <--- important for visibility toggling!
+  paint: {{ 'fill-color': '#fff', 'fill-opacity': 0.9 }}
+}});
+
 
     map.addSource('tsp', {{ type: 'geojson', data: {tsp_geojson_str} }});
     map.addLayer({{ id: 'tsp-fill', type: 'fill', source: 'tsp', paint: {{ 'fill-color': '#ff69b4', 'fill-opacity': 0 }} }});
@@ -568,6 +575,15 @@ const interval = setInterval(() => {{
     const targetY = parseFloat(activeFlyto.y);
 
     const distance = Math.sqrt(Math.pow(mapX - targetX, 2) + Math.pow(mapY - targetY, 2));
+  map.setLayoutProperty('mask-fill', 'visibility', activeFlyto.mask_geojson === 1 ? 'visible' : 'none');
+  map.setLayoutProperty('tsp-fill', 'visibility', activeFlyto.tsp_geojson === 1 ? 'visible' : 'none');
+  map.setLayoutProperty('streets-lines', 'visibility', activeFlyto.streets_geojson === 1 ? 'visible' : 'none');
+  map.setLayoutProperty('street-labels', 'visibility', activeFlyto.label_geojson === 1 ? 'visible' : 'none');
+  map.setLayoutProperty('buildings', 'visibility', activeFlyto.buildings_geojson === 1 ? 'visible' : 'none');
+  map.setLayoutProperty('building-borders', 'visibility', activeFlyto.buildings_geojson === 1 ? 'visible' : 'none');
+  map.setLayoutProperty('3d-buildings', 'visibility', activeFlyto.buildings_geojson === 1 ? 'visible' : 'none');
+  map.setLayoutProperty('restaurants', 'visibility', activeFlyto.restaurants_geojson === 1 ? 'visible' : 'none');
+  map.setLayoutProperty('restaurant-labels', 'visibility', activeFlyto.restaurants_geojson === 1 ? 'visible' : 'none');
 
     if (distance > 0.0001) {{  // only fly if we're not already at the location
       map.flyTo({{
