@@ -5,10 +5,9 @@ from shapely.geometry import shape
 from shapely.ops import unary_union
 import json
 import pandas as pd
-from streamlit_js_eval import streamlit_js_eval
-
 
 st.set_page_config(layout="wide")
+
 
 
 MAPTILER_KEY = "EtcjLZyGgesPnUV8Gyik" # Replace if needed
@@ -361,11 +360,7 @@ html(f"""
 </head>
 <body>
   <div id="video-panel">
-<iframe id="ytplayer" src="https://www.youtube.com/embed/Xw_c0e96slM?enablejsapi=1"
-    style="width: 100%; aspect-ratio: 16/9; border: none;" 
-    allow="autoplay; encrypted-media" allowfullscreen>
-</iframe>
-
+    <iframe id="ytplayer" src="https://www.youtube.com/embed/Xw_c0e96slM?enablejsapi=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>
     <div id="scrollable-text">{long_text}</div>
   </div>
 
@@ -413,6 +408,11 @@ html(f"""
       videoPanel.style.height = windowHeight + 'px';
       scrollableText.style.height = (windowHeight - videoHeight) + 'px';
     }}
+
+    const parentFrame = window.frameElement;
+    if (parentFrame) {{
+      parentFrame.style.height = window.innerHeight + 'px';
+    }}
   }}
 
   window.addEventListener('load', resizeLayout);
@@ -432,10 +432,13 @@ html(f"""
   map.on('load', () => {{
     map.addSource('mask', {{ type: 'geojson', data: {mask_geojson_str} }});
     map.addLayer({{ id: 'mask-fill', type: 'fill', source: 'mask', paint: {{ 'fill-color': '#fff', 'fill-opacity': 0.9 }} }});
+
     map.addSource('tsp', {{ type: 'geojson', data: {tsp_geojson_str} }});
     map.addLayer({{ id: 'tsp-fill', type: 'fill', source: 'tsp', paint: {{ 'fill-color': '#ff69b4', 'fill-opacity': 0 }} }});
+
     map.addSource('streets', {{ type: 'geojson', data: {streets_geojson_str} }});
     map.addLayer({{ id: 'streets-lines', type: 'line', source: 'streets', paint: {{ 'line-color': '#ffff00', 'line-width': 3 }} }});
+
     map.addSource('labels', {{ type: 'geojson', data: {label_geojson_str} }});
     map.addLayer({{
       id: 'street-labels',
@@ -454,6 +457,7 @@ html(f"""
         'text-halo-width': 1
       }}
     }});
+
     map.addSource('buildings', {{ type: 'geojson', data: {buildings_geojson_str} }});
     map.addLayer({{ id: 'buildings', type: 'fill', source: 'buildings', paint: {{ 'fill-color': '#aaa', 'fill-opacity': 0.6 }} }});
     map.addLayer({{ id: 'building-borders', type: 'line', source: 'buildings', paint: {{ 'line-color': '#fff', 'line-width': 0.3 }} }});
@@ -468,17 +472,8 @@ html(f"""
         'fill-extrusion-opacity': 0.9
       }}
     }});
-    map.addSource('restaurants', {{ type: 'geojson', data: {restaurants_geojson_str} }});
-    const colorMap = {{
-  "Restaurant": "#6BCB77",
-  "Bar": "#8a7367",
-  "Cafe": "#FFD93D",
-  "Fast Food": "#FFB347",
-  "Ice Cream": "#B28DFF",
-  "Candy Store": "#F67280",
-  "Deli": "#00B8A9"
-}};
 
+    map.addSource('restaurants', {{ type: 'geojson', data: {restaurants_geojson_str} }});
     map.addLayer({{
       id: 'restaurants',
       type: 'circle',
@@ -486,21 +481,23 @@ html(f"""
       paint: {{
         'circle-radius': 10,
         'circle-color': [
-          'match',
-          ['get', 'amenity'],
-          'Restaurant', colorMap['Restaurant'],
-          'Bar', colorMap['Bar'],
-          'Cafe', colorMap['Cafe'],
-          'Fast Food', colorMap['Fast Food'],
-          'Ice Cream', colorMap['Ice Cream'],
-          'Candy Store', colorMap['Candy Store'],
-          'Deli', colorMap['Deli'],
-          '#4D96FF'
-        ],
+  'match',
+  ['get', 'amenity'],
+  'Restaurant', colorMap['Restaurant'],
+  'Bar', colorMap['Bar'],
+  'Cafe', colorMap['Cafe'],
+  'Fast Food', colorMap['Fast Food'],
+  'Ice Cream', colorMap['Ice Cream'],
+  'Candy Store', colorMap['Candy Store'],
+  'Deli', colorMap['Deli'],
+  /* default */ '#4D96FF'
+],
+
         'circle-stroke-color': '#ffffff',
         'circle-stroke-width': 1.5
       }}
     }});
+
     map.addLayer({{
       id: 'restaurant-labels',
       type: 'symbol',
@@ -517,13 +514,208 @@ html(f"""
     }});
   }});
 
+  // --- Make restaurants GeoJSON accessible ---
+const restaurantsData = {restaurants_geojson_str};
 
-  </script>
+// --- Setup color map ---
+const colorMap = {{
+  "Restaurant": "#6BCB77",
+  "Bar": "#8a7367",
+  "Cafe": "#FFD93D",
+  "Fast Food": "#FFB347",
+  "Ice Cream": "#B28DFF",
+  "Candy Store": "#F67280",
+  "Deli": "#00B8A9"
+}};
+
+
+
+// --- YouTube Player API ---
+var player;
+window.onYouTubeIframeAPIReady = function () {{
+  player = new YT.Player('ytplayer', {{
+    events: {{
+      'onReady': function () {{
+        const flytoEvents = {flyto_events_json};
+        const eventFlags = new Array(flytoEvents.length * 2).fill(false);
+
+const interval = setInterval(() => {{
+  if (!player || !map || typeof player.getCurrentTime !== 'function' || !map.isStyleLoaded()) return;
+
+  const time = player.getCurrentTime();
+
+  let activeFlyto = null;  // the restaurant event we should fly to
+  let needReset = true;    // assume we need to reset unless we find an active one
+
+  for (let i = 0; i < flytoEvents.length; i++) {{
+    const event = flytoEvents[i];
+    const cue = parseFloat(event.cue);
+    const reset = parseFloat(event.reset);
+
+    if (time >= cue && time < reset) {{
+      activeFlyto = event;
+      needReset = false;
+      break;  // flytoEvents are ordered, so first match wins
+    }}
+  }}
+
+  if (activeFlyto) {{
+    // If not already at the active location, fly there
+    const center = map.getCenter();
+    const mapX = center.lng;
+    const mapY = center.lat;
+    const targetX = parseFloat(activeFlyto.x);
+    const targetY = parseFloat(activeFlyto.y);
+
+    const distance = Math.sqrt(Math.pow(mapX - targetX, 2) + Math.pow(mapY - targetY, 2));
+
+    if (distance > 0.0001) {{  // only fly if we're not already at the location
+      map.flyTo({{
+        center: [targetX, targetY],
+        zoom: parseFloat(activeFlyto.zoom),
+        essential: true
+      }});
+
+      // --- Scroll text and highlight ---
+      const scrollBox = document.getElementById('scrollable-text');
+      let entryElement = null;
+      if (activeFlyto.numb && activeFlyto.numb !== '') {{
+        entryElement = document.getElementById(`entry-${{activeFlyto.numb}}`);
+      }} else if (activeFlyto.name && activeFlyto.name !== '') {{
+        entryElement = Array.from(document.querySelectorAll('.restaurant-entry')).find(el =>
+          el.textContent.includes(activeFlyto.name)
+        );
+      }}
+      if (entryElement && scrollBox) {{
+        const scrollBoxTop = scrollBox.getBoundingClientRect().top;
+        const entryTop = entryElement.getBoundingClientRect().top;
+        const scrollOffset = scrollBox.scrollTop + (entryTop - scrollBoxTop) - scrollBox.clientHeight/2 + entryElement.clientHeight/2;
+        scrollBox.scrollTo({{ top: scrollOffset, behavior: 'smooth' }});
+
+        document.querySelectorAll('.restaurant-entry').forEach(el => {{
+          el.style.backgroundColor = '';
+        }});
+
+        let amenityType = null;
+        if (activeFlyto.name) {{
+          const matched = restaurantsData.features.find(f =>
+            f.properties.name && f.properties.name.trim() === activeFlyto.name.trim()
+          );
+          if (matched && matched.properties.amenity) {{
+            amenityType = matched.properties.amenity;
+          }}
+        }}
+        const highlightColor = colorMap[amenityType] || '#cccccc';
+        entryElement.style.backgroundColor = highlightColor + '66';
+        entryElement.style.borderRadius = '8px';
+      }}
+
+      if (activeFlyto.name && activeFlyto.name !== '') {{
+        map.setPaintProperty('restaurants', 'circle-radius', [
+          'case', ['==', ['get', 'name'], activeFlyto.name], 30, 10
+        ]);
+        map.setLayoutProperty('restaurant-labels', 'text-field', [
+          'case', ['==', ['get', 'name'], activeFlyto.name], ['get', 'name'], ['get', 'Numb']
+        ]);
+        map.setLayoutProperty('restaurant-labels', 'text-size', [
+          'case', ['==', ['get', 'name'], activeFlyto.name], 22, 11
+        ]);
+        map.setLayoutProperty('restaurant-labels', 'text-font', [
+          'case', ['==', ['get', 'name'], activeFlyto.name], ['literal', ['Arial Unicode MS Bold']], ['literal', ['Arial Unicode MS']]
+        ]);
+      }} else if (activeFlyto.numb && activeFlyto.numb !== '') {{
+        map.setPaintProperty('restaurants', 'circle-radius', [
+          'case', ['==', ['get', 'Numb'], parseInt(activeFlyto.numb)], 30, 10
+        ]);
+        map.setLayoutProperty('restaurant-labels', 'text-field', [
+          'case', ['==', ['get', 'Numb'], parseInt(activeFlyto.numb)], ['get', 'name'], ['get', 'Numb']
+        ]);
+        map.setLayoutProperty('restaurant-labels', 'text-size', [
+          'case', ['==', ['get', 'Numb'], parseInt(activeFlyto.numb)], 22, 11
+        ]);
+        map.setLayoutProperty('restaurant-labels', 'text-font', [
+          'case', ['==', ['get', 'Numb'], parseInt(activeFlyto.numb)], ['literal', ['Arial Unicode MS Bold']], ['literal', ['Arial Unicode MS']]
+        ]);
+      }}
+    }}
+  }} else if (needReset) {{
+    // We are outside any flyto interval → Reset back to overview if not already there
+    const center = map.getCenter();
+    const mapX = center.lng;
+    const mapY = center.lat;
+    const resetX = -73.9819;
+    const resetY = 40.7265;
+
+    const distance = Math.sqrt(Math.pow(mapX - resetX, 2) + Math.pow(mapY - resetY, 2));
+
+    if (distance > 0.0001) {{
+      map.flyTo({{
+        center: [resetX, resetY],
+        zoom: 16.75,
+        bearing: 29.2,
+        pitch: 0,
+        essential: true
+      }});
+      map.setPaintProperty('restaurants', 'circle-radius', 10);
+      map.setLayoutProperty('restaurant-labels', 'text-field', ['get', 'Numb']);
+      map.setLayoutProperty('restaurant-labels', 'text-size', 11);
+      map.setLayoutProperty('restaurant-labels', 'text-font', ['literal', ['Arial Unicode MS']]);
+    }}
+  }}
+}}, 300);
+      }}
+    }}
+  }});
+}};
+
+  // --- Scroll Highlight Active Section ---
+  const scrollBox = document.getElementById('scrollable-text');
+  const entries = document.querySelectorAll('.restaurant-entry');
+
+  function highlightCenteredEntry() {{
+    const boxCenter = scrollBox.scrollTop + scrollBox.clientHeight / 2;
+    let closestEntry = null;
+    let closestDistance = Infinity;
+
+    entries.forEach(entry => {{
+      const rect = entry.getBoundingClientRect();
+      const entryCenter = rect.top + rect.height / 2;
+      const distance = Math.abs(entryCenter - window.innerHeight / 2);
+
+      if (distance < closestDistance) {{
+        closestDistance = distance;
+        closestEntry = entry;
+      }}
+    }});
+
+    entries.forEach(entry => entry.classList.remove('active'));
+    if (closestEntry) {{
+      closestEntry.classList.add('active');
+    }}
+  }}
+
+  scrollBox.addEventListener('scroll', highlightCenteredEntry);
+  window.addEventListener('load', highlightCenteredEntry);
+
+function reportResize() {{
+  const height = document.body.scrollHeight;
+  const parentFrame = window.parent;
+  if (parentFrame) {{
+    parentFrame.postMessage({{isStreamlitMessage: true, type: "streamlit:resize", height: height}}, "*");
+    setTimeout(() => {{
+      parentFrame.postMessage({{isStreamlitMessage: true, type: "streamlit:rendered"}}, "*");
+    }}, 100); // small delay to make sure resize is processed first
+  }}
+}}
+
+window.addEventListener("load", reportResize);
+window.addEventListener("resize", reportResize);
+
+</script>
 
 </body>
-
 </html>
-""", height=825, scrolling=True) # Adjust height as needed for the overall component frame
+""", height=825, scrolling=False) # Adjust height as needed for the overall component frame
 
 st.markdown("""
 <style>
