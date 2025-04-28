@@ -430,16 +430,23 @@ html(f"""
   window.addEventListener('load', resizeLayout);
   window.addEventListener('resize', resizeLayout);
 
-  // --- Initialize Map ---
-  const map = new maplibregl.Map({{
+const map = new maplibregl.Map({{
     container: 'map',
-    style: 'https://api.maptiler.com/maps/satellite/style.json?key=EtcjLZyGgesPnUV8Gyik',
-    center: [-73.9819, 40.7265],
-    zoom: 16.75,
-    minZoom: 16,
+    style: 'https://api.maptiler.com/maps/basic/style.json?key=EtcjLZyGgesPnUV8Gyik',
+    center: [-73.9815, 40.7260],  // Tompkins Square Park center
+    zoom: 15.5,                   // Zoom in closer to TSP
+    minZoom: 10,
     bearing: 29.2,
     pitch: 0
-  }});
+}});
+
+
+
+
+map.on('load', () => {{
+    console.log('Map loaded, ready for adding layers later');
+}});
+
 
   map.on('load', () => {{
     map.addSource('mask', {{ type: 'geojson', data: {mask_geojson_str} }});
@@ -563,47 +570,30 @@ const interval = setInterval(() => {{
 
   const time = player.getCurrentTime();
 
-  // --- Manhattan zoom at 56s - 59s ---
-if (time >= 56 && time < 59) {{
-    map.fitBounds([
-      [-74.020, 40.700], // Southwest corner of Manhattan
-      [-73.930, 40.880]  // Northeast corner of Manhattan
-    ], {{
-      padding: 80,
-      bearing: 0,
-      pitch: 0,
-      duration: 3000,
-      essential: true
-    }});
-    return;
-}}
 
-// --- East Village zoom at 59s - 1:33s ---
+
+// --- East Village zoom at 59s - 93s ---
 if (time >= 59 && time < 93) {{
-    map.fitBounds([
-      [-73.9886, 40.7219], // Southwest East Village
-      [-73.9730, 40.7308]  // Northeast East Village
-    ], {{
-      padding: 80,
-      bearing: 0,
-      pitch: 0,
-      duration: 3000,
-      essential: true
+    map.flyTo({{
+        center: [-73.9815, 40.7260],
+        zoom: 15.5,
+        bearing: 29.2,
+        pitch: 0,
+        duration: 3000,
+        essential: true
     }});
     return;
 }}
 
-// --- Greenwich Village zoom at 1:33s and after ---
-if (time >= 93) {{
-    map.fitBounds([
-      [-74.0076, 40.7260], // Southwest Greenwich Village
-      [-73.9950, 40.7375]  // Northeast Greenwich Village
-    ], {{
-      padding: 80,
-      bearing: 0,
-      pitch: 0,
-      duration: 3000,
-      essential: true
+// --- Greenwich Village zoom at 93s - 101s ---
+if (time >= 93 && time < 101) {{
+    map.flyTo({{
+        center: [-74.0020, 40.7320],
+        zoom: 15.0,
+        bearing: 29.2,
+        pitch: 0,
+        duration: 3000,
+        essential: true
     }});
     return;
 }}
@@ -624,7 +614,10 @@ if (time >= 93) {{
     }}
   }}
 
-  
+if (time >= 58 && time < 59 && map.getStyle().sprite.includes('basic')) {{
+  map.setStyle('https://api.maptiler.com/maps/satellite/style.json?key=EtcjLZyGgesPnUV8Gyik');
+}}
+
 
 // --- HARD-CODED LAYER TOGGLING ---
 if (time < 101.5) {{ // 0:00 - 1:40
@@ -758,7 +751,7 @@ if (time < 101.5) {{ // 0:00 - 1:40
 
     const distance = Math.sqrt(Math.pow(mapX - resetX, 2) + Math.pow(mapY - resetY, 2));
 
-    if (distance > 0.0001) {{
+    if (distance > 0.0001 && time > 59) {{
       map.flyTo({{
         center: [resetX, resetY],
         zoom: 16.75,
