@@ -432,7 +432,7 @@ html(f"""
 
 const map = new maplibregl.Map({{
     container: 'map',
-    style: 'https://api.maptiler.com/maps/basic/style.json?key=EtcjLZyGgesPnUV8Gyik',
+    style: 'https://api.maptiler.com/maps/satellite/style.json?key=EtcjLZyGgesPnUV8Gyik',
     center: [-73.9815, 40.7260],  // Tompkins Square Park center
     zoom: 15.5,                   // Zoom in closer to TSP
     minZoom: 10,
@@ -614,9 +614,6 @@ if (time >= 93 && time < 101) {{
     }}
   }}
 
-if (time >= 58 && time < 59 && map.getStyle().sprite.includes('basic')) {{
-  map.setStyle('https://api.maptiler.com/maps/satellite/style.json?key=EtcjLZyGgesPnUV8Gyik');
-}}
 
 
 // --- HARD-CODED LAYER TOGGLING ---
