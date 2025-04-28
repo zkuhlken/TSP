@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <div id="player"></div>
+
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script>
+      let player;
+
+      function onYouTubeIframeAPIReady() {
+        player = new YT.Player('player', {
+          height: '360',
+          width: '640',
+          videoId: 'Xw_c0e96slM',
+          events: {
+            onReady: onPlayerReady
+          }
+        });
+      }
+
+      function onPlayerReady(event) {
+        setInterval(() => {
+          const currentTime = player.getCurrentTime();
+          window.parent.postMessage({
+            isStreamlitMessage: true,
+            type: "streamlit:setComponentValue",
+            value: { time: currentTime }
+          }, "*");
+        }, 1000);
+      }
+    </script>
+  </body>
+</html>
