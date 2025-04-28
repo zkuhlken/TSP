@@ -45,16 +45,28 @@ for _, row in flyto_df.iterrows():
     id = row.get("numb", "N/A")
     name = row.get("name", "Unnamed")
     text = row.get("long_text", "No description available.")
-    if str(name).strip() == "" and str(text).strip() == "":
-        continue  # Skip empty rows
+    is_food = row.get("is_food", 1)  # Default to 1 if missing
 
-    entry_id = f"entry-{id}"  # Unique ID for each entry (for JS highlighting)
+    # Skip if is_food is 0 or if both name and text are empty
+    if int(is_food) != 1 or (str(name).strip() == "" and str(text).strip() == ""):
+        continue
+
+    # --- Fix id to be int if possible ---
+    try:
+        id_display = str(int(float(id)))  # force into int, then string
+    except:
+        id_display = str(id)
+
+    entry_id = f"entry-{id_display}"
 
     long_text += f"""
 <div id="{entry_id}" class="restaurant-entry">
-<h3 style='text-align:center; font-weight:bold; font-size: 16px; line-height: 1.1; margin: 0; padding: 0;'>{id}. {name}</h3>    <p style='text-align:left; margin: 0px 0px 10px 10px;'>{text}</p>
+<h3 style='text-align:center; font-weight:bold; font-size: 16px; line-height: 1.1; margin: 0; padding: 0;'>{id_display}. {name}</h3>    
+<p style='text-align:left; margin: 0px 0px 10px 10px;'>{text}</p>
 </div>
 """
+
+
 
 
 
@@ -360,7 +372,7 @@ html(f"""
 </head>
 <body>
   <div id="video-panel">
-    <iframe id="ytplayer" src="https://www.youtube.com/embed/Xw_c0e96slM?enablejsapi=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+    <iframe id="ytplayer" src="https://www.youtube.com/embed/MILdLWASrlI?enablejsapi=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>
     <div id="scrollable-text">{long_text}</div>
   </div>
 
@@ -551,44 +563,127 @@ const interval = setInterval(() => {{
 
   const time = player.getCurrentTime();
 
-  let activeFlyto = null;  // the restaurant event we should fly to
-  let needReset = true;    // assume we need to reset unless we find an active one
+  // --- Manhattan zoom at 56s - 59s ---
+if (time >= 56 && time < 59) {{
+    map.fitBounds([
+      [-74.020, 40.700], // Southwest corner of Manhattan
+      [-73.930, 40.880]  // Northeast corner of Manhattan
+    ], {{
+      padding: 80,
+      bearing: 0,
+      pitch: 0,
+      duration: 3000,
+      essential: true
+    }});
+    return;
+}}
+
+// --- East Village zoom at 59s - 1:33s ---
+if (time >= 59 && time < 93) {{
+    map.fitBounds([
+      [-73.9886, 40.7219], // Southwest East Village
+      [-73.9730, 40.7308]  // Northeast East Village
+    ], {{
+      padding: 80,
+      bearing: 0,
+      pitch: 0,
+      duration: 3000,
+      essential: true
+    }});
+    return;
+}}
+
+// --- Greenwich Village zoom at 1:33s and after ---
+if (time >= 93) {{
+    map.fitBounds([
+      [-74.0076, 40.7260], // Southwest Greenwich Village
+      [-73.9950, 40.7375]  // Northeast Greenwich Village
+    ], {{
+      padding: 80,
+      bearing: 0,
+      pitch: 0,
+      duration: 3000,
+      essential: true
+    }});
+    return;
+}}
+
+
+  let activeFlyto = null;
+  let needReset = true;
 
   for (let i = 0; i < flytoEvents.length; i++) {{
     const event = flytoEvents[i];
     const cue = parseFloat(event.cue);
     const reset = parseFloat(event.reset);
 
-    if (time >= cue && time < reset) {{
+    if (!isNaN(cue) && !isNaN(reset) && time >= cue && time < reset) {{
       activeFlyto = event;
       needReset = false;
-      break;  // flytoEvents are ordered, so first match wins
+      break;
     }}
   }}
 
+  
+
+// --- HARD-CODED LAYER TOGGLING ---
+if (time < 101.5) {{ // 0:00 - 1:40
+    map.setLayoutProperty('mask-fill', 'visibility', 'none');
+    map.setLayoutProperty('streets-lines', 'visibility', 'none');
+    map.setLayoutProperty('street-labels', 'visibility', 'none');
+    map.setLayoutProperty('buildings', 'visibility', 'none');
+    map.setLayoutProperty('3d-buildings', 'visibility', 'none');
+    map.setLayoutProperty('restaurants', 'visibility', 'none');
+    map.setLayoutProperty('restaurant-labels', 'visibility', 'none');
+}} else if (time >= 101.5 && time < 169) {{ // 1:40 - 2:49
+    map.setLayoutProperty('mask-fill', 'visibility', 'visible');
+    map.setLayoutProperty('streets-lines', 'visibility', 'none');
+    map.setLayoutProperty('street-labels', 'visibility', 'none');
+    map.setLayoutProperty('buildings', 'visibility', 'none');
+    map.setLayoutProperty('3d-buildings', 'visibility', 'none');
+    map.setLayoutProperty('restaurants', 'visibility', 'none');
+    map.setLayoutProperty('restaurant-labels', 'visibility', 'none');
+}} else if (time >= 169 && time < 171) {{ // 2:49 - 2:51
+    map.setLayoutProperty('mask-fill', 'visibility', 'visible');
+    map.setLayoutProperty('streets-lines', 'visibility', 'none');
+    map.setLayoutProperty('street-labels', 'visibility', 'none');
+    map.setLayoutProperty('buildings', 'visibility', 'visible');
+    map.setLayoutProperty('3d-buildings', 'visibility', 'visible');
+    map.setLayoutProperty('restaurants', 'visibility', 'none');
+    map.setLayoutProperty('restaurant-labels', 'visibility', 'none');
+}} else if (time >= 171 && time < 178) {{ // 2:51 - 2:58
+    map.setLayoutProperty('mask-fill', 'visibility', 'visible');
+    map.setLayoutProperty('streets-lines', 'visibility', 'none');
+    map.setLayoutProperty('street-labels', 'visibility', 'none');
+    map.setLayoutProperty('buildings', 'visibility', 'visible');
+    map.setLayoutProperty('3d-buildings', 'visibility', 'visible');
+    map.setLayoutProperty('restaurants', 'visibility', 'visible');
+    map.setLayoutProperty('restaurant-labels', 'visibility', 'visible');
+}} else if (time >= 178) {{ // after 2:58
+    map.setLayoutProperty('mask-fill', 'visibility', 'visible');
+    map.setLayoutProperty('streets-lines', 'visibility', 'visible');
+    map.setLayoutProperty('street-labels', 'visibility', 'visible');
+    map.setLayoutProperty('buildings', 'visibility', 'visible');
+    map.setLayoutProperty('3d-buildings', 'visibility', 'visible');
+    map.setLayoutProperty('restaurants', 'visibility', 'visible');
+    map.setLayoutProperty('restaurant-labels', 'visibility', 'visible');
+}}
+
+
   if (activeFlyto) {{
-    // If not already at the active location, fly there
     const center = map.getCenter();
     const mapX = center.lng;
     const mapY = center.lat;
     const targetX = parseFloat(activeFlyto.x);
     const targetY = parseFloat(activeFlyto.y);
+    const targetZoom = parseFloat(activeFlyto.zoom) || 16.75;
 
     const distance = Math.sqrt(Math.pow(mapX - targetX, 2) + Math.pow(mapY - targetY, 2));
-  map.setLayoutProperty('mask-fill', 'visibility', activeFlyto.mask_geojson === 1 ? 'visible' : 'none');
-  map.setLayoutProperty('tsp-fill', 'visibility', activeFlyto.tsp_geojson === 1 ? 'visible' : 'none');
-  map.setLayoutProperty('streets-lines', 'visibility', activeFlyto.streets_geojson === 1 ? 'visible' : 'none');
-  map.setLayoutProperty('street-labels', 'visibility', activeFlyto.label_geojson === 1 ? 'visible' : 'none');
-  map.setLayoutProperty('buildings', 'visibility', activeFlyto.buildings_geojson === 1 ? 'visible' : 'none');
-  map.setLayoutProperty('building-borders', 'visibility', activeFlyto.buildings_geojson === 1 ? 'visible' : 'none');
-  map.setLayoutProperty('3d-buildings', 'visibility', activeFlyto.buildings_geojson === 1 ? 'visible' : 'none');
-  map.setLayoutProperty('restaurants', 'visibility', activeFlyto.restaurants_geojson === 1 ? 'visible' : 'none');
-  map.setLayoutProperty('restaurant-labels', 'visibility', activeFlyto.restaurants_geojson === 1 ? 'visible' : 'none');
 
-    if (distance > 0.0001) {{  // only fly if we're not already at the location
+    if (distance > 0.0001) {{
       map.flyTo({{
         center: [targetX, targetY],
-        zoom: parseFloat(activeFlyto.zoom),
+        zoom: targetZoom,
         essential: true
       }});
 
@@ -631,7 +726,7 @@ const interval = setInterval(() => {{
           'case', ['==', ['get', 'name'], activeFlyto.name], 30, 10
         ]);
         map.setLayoutProperty('restaurant-labels', 'text-field', [
-          'case', ['==', ['get', 'name'], activeFlyto.name], ['get', 'name'], ['get', 'Numb']
+          'case', ['==', ['get', 'name'], activeFlyto.name], ['get', 'Numb']
         ]);
         map.setLayoutProperty('restaurant-labels', 'text-size', [
           'case', ['==', ['get', 'name'], activeFlyto.name], 22, 11
@@ -655,7 +750,6 @@ const interval = setInterval(() => {{
       }}
     }}
   }} else if (needReset) {{
-    // We are outside any flyto interval → Reset back to overview if not already there
     const center = map.getCenter();
     const mapX = center.lng;
     const mapY = center.lat;
@@ -679,6 +773,7 @@ const interval = setInterval(() => {{
     }}
   }}
 }}, 300);
+
       }}
     }}
   }});
